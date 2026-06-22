@@ -1,0 +1,53 @@
+# Data files
+*.csv
+*.parquet
+*.gz
+*.json
+!**/seeds/**
+!**/data/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables (API keys)
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local stores
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.sqlite3
+qdrant_storage/
+storage/
+
+# Kestra
+data/
+tmp/
+*.log
+
+# Build / cache
+target/
+logs/
+
+# Keep directory structure
+!**/.gitkeep
