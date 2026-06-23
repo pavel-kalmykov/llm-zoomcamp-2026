@@ -101,6 +101,26 @@ How many lesson pages are in the dataset?
 * 240
 * 720
 
+```python
+from gitsource import GithubRepositoryDataReader
+
+reader = GithubRepositoryDataReader(
+    repo_owner="DataTalksClub",
+    repo_name="llm-zoomcamp",
+    commit_id="8c1834d",
+    allowed_extensions={"md"},
+    filename_filter=lambda path: "/lessons/" in path,
+)
+documents = [f.parse() for f in reader.read()]
+len(documents)
+```
+
+```
+72
+```
+
+**Answer:** 72
+
 ## Q2. Indexing and searching
 
 Index the documents with minsearch - make `content` a text field and
@@ -114,6 +134,24 @@ What's the `filename` of the first result?
 * `01-agentic-rag/lessons/14-agentic-loop.md`
 * `04-evaluation/lessons/13-llm-as-judge.md`
 * `06-best-practices/lessons/02-hybrid-search.md`
+
+```python
+from minsearch import Index
+
+index = Index(text_fields=["content"], keyword_fields=["filename"])
+index.fit(documents)
+results = index.search(
+    "How does the agentic loop keep calling the model until it stops?",
+    num_results=5,
+)
+results[0]["filename"]
+```
+
+```
+'01-agentic-rag/lessons/14-agentic-loop.md'
+```
+
+**Answer:** `01-agentic-rag/lessons/14-agentic-loop.md`
 
 ## Q3. RAG
 
@@ -143,6 +181,32 @@ this request?
 * 7000
 * 70000
 * 700000
+
+```python
+import os
+
+import anthropic
+from dotenv import load_dotenv
+
+from rag_helper import RAG
+
+load_dotenv()
+client = anthropic.Anthropic(
+    api_key=os.environ["ZAI_API_KEY"],
+    base_url=os.environ["ZAI_BASE_URL"],
+)
+rag = RAG(index=index, llm_client=client, model="glm-4.6")
+answer, usage = rag.rag(
+    "How does the agentic loop keep calling the model until it stops?"
+)
+usage.input_tokens
+```
+
+```
+7200
+```
+
+**Answer:** 7000 (observed 7200 input tokens with glm-4.6)
 
 We count input tokens instead of price because the cost depends on the model
 and provider you use, but the size of the prompt we send is the same for
@@ -192,6 +256,19 @@ How many chunks do you get?
 * 1100
 * 4500
 
+```python
+from gitsource import chunk_documents
+
+chunks = chunk_documents(documents, size=2000, step=1000)
+len(chunks)
+```
+
+```
+295
+```
+
+**Answer:** 295
+
 ## Q5. RAG with chunking
 
 Chunking makes each request smaller, because we send a smaller context to the
@@ -208,6 +285,22 @@ version send?
 * 3× fewer
 * 10× fewer
 * 30× fewer
+
+```python
+chunk_index = Index(text_fields=["content"], keyword_fields=["filename"])
+chunk_index.fit(chunks)
+rag2 = RAG(index=chunk_index, llm_client=client, model="glm-4.6")
+_, usage2 = rag2.rag(
+    "How does the agentic loop keep calling the model until it stops?"
+)
+usage2.input_tokens, usage.input_tokens / usage2.input_tokens
+```
+
+```
+(2262, 3.18)
+```
+
+**Answer:** 3x fewer (observed ~3.2x with glm-4.6)
 
 
 ## Q6. Turning it into an agent
@@ -251,6 +344,52 @@ How many times did the agent call `search`?
 * 4
 * 10
 * 20
+
+```python
+from toyaikit.chat.interface import IPythonChatInterface
+from toyaikit.chat.runners import AnthropicMessagesRunner
+from toyaikit.llm import AnthropicClient
+from toyaikit.tools import Tools
+
+calls = {"n": 0}
+
+
+def search(query: str) -> str:
+    """Search the LLM Zoomcamp lessons and return the most relevant passages."""
+    calls["n"] += 1
+    hits = chunk_index.search(query, num_results=5)
+    return "\n\n".join(f"File: {h['filename']}\n{h['content'][:1500]}" for h in hits)
+
+
+tools = Tools()
+tools.add_tool(search)
+llm = AnthropicClient(
+    model="glm-4.6",
+    api_key=os.environ["ZAI_API_KEY"],
+    base_url="https://api.z.ai/api/anthropic",
+    extra_kwargs={"max_tokens": 4096},
+)
+runner = AnthropicMessagesRunner(
+    tools=tools,
+    developer_prompt=(
+        "You're a course teaching assistant. Answer the student's question "
+        "using the search tool. Make multiple searches with different "
+        "keywords before answering."
+    ),
+    chat_interface=IPythonChatInterface(),
+    llm_client=llm,
+)
+runner.loop(
+    prompt="How does the agentic loop work, and how is it different from plain RAG?"
+)
+calls["n"]
+```
+
+```
+5
+```
+
+**Answer:** 4 (observed ~5 with glm-4.6; varies between runs)
 
 
 ## Learning in Public
@@ -309,3 +448,134 @@ Free course by @Al_Grigor & @DataTalksClub: https://github.com/DataTalksClub/llm
 
 * Submit your results here: https://courses.datatalks.club/llm-zoomcamp-2026/homework/hw1
 * It's possible your answers won't match exactly. If so, select the closest one.
+
+## Answers
+
+Solved with `glm-4.6` via Z.ai's Anthropic-compatible endpoint, in the marimo
+notebook `homework.py` (`uv run marimo run 01-agentic-rag/homework.py`). The
+snippets below are the minimal code that produces each answer, with the real
+observed output as a comment. GLM may differ from the OpenAI reference model on
+Q6; the closest option is picked as the homework allows.
+
+Configuration (API key, base URL, model, and the optional CA bundle for a
+TLS-intercepting proxy) lives in a gitignored `.env` loaded with `python-dotenv`;
+see `.env.example`. The `client` in the snippets is built from it.
+
+### Q1. How many lesson pages. **72**
+
+```python
+from gitsource import GithubRepositoryDataReader
+
+reader = GithubRepositoryDataReader(
+    repo_owner="DataTalksClub",
+    repo_name="llm-zoomcamp",
+    commit_id="8c1834d",
+    allowed_extensions={"md"},
+    filename_filter=lambda path: "/lessons/" in path,
+)
+documents = [f.parse() for f in reader.read()]
+print(len(documents))  # 72
+```
+
+### Q2. First result filename. `01-agentic-rag/lessons/14-agentic-loop.md`
+
+```python
+from minsearch import Index
+
+index = Index(text_fields=["content"], keyword_fields=["filename"])
+index.fit(documents)
+top = index.search(
+    "How does the agentic loop keep calling the model until it stops?",
+    num_results=5,
+)[0]
+print(top["filename"])  # 01-agentic-rag/lessons/14-agentic-loop.md
+```
+
+### Q3. RAG input tokens. **7200** (option: 7000)
+
+```python
+import os
+
+import anthropic
+from dotenv import load_dotenv
+
+from rag_helper import RAG
+
+load_dotenv()  # ZAI_API_KEY, ZAI_BASE_URL, GLM_MODEL (+ optional CA bundle)
+client = anthropic.Anthropic(
+    api_key=os.environ["ZAI_API_KEY"], base_url=os.environ["ZAI_BASE_URL"]
+)
+rag = RAG(index=index, llm_client=client, model=os.environ.get("GLM_MODEL", "glm-4.6"))
+answer, usage = rag.rag(
+    "How does the agentic loop keep calling the model until it stops?"
+)
+print(usage.input_tokens)  # 7200
+```
+
+### Q4. Number of chunks (size=2000, step=1000). **295**
+
+```python
+from gitsource import chunk_documents
+
+chunks = chunk_documents(documents, size=2000, step=1000)
+print(len(chunks))  # 295
+```
+
+### Q5. Chunked RAG input tokens. **2262**, about **3x fewer** than Q3
+
+```python
+chunk_index = Index(text_fields=["content"], keyword_fields=["filename"])
+chunk_index.fit(chunks)
+rag2 = RAG(index=chunk_index, llm_client=client, model="glm-4.6")
+_, usage2 = rag2.rag(
+    "How does the agentic loop keep calling the model until it stops?"
+)
+print(usage2.input_tokens, round(usage.input_tokens / usage2.input_tokens, 1))
+# 2262 3.2
+```
+
+### Q6. Agent `search` calls. **~5** (closest option: 4; varies between runs)
+
+The count is non-deterministic. Observed 5 and 8 search calls across runs with
+`glm-4.6`; the homework's reference of 4 was measured with `gpt-5.4-mini`. The
+deciding trait is that it searches more than once before answering: a single
+search would be plain RAG, not an agent.
+
+```python
+from toyaikit.chat.interface import IPythonChatInterface
+from toyaikit.chat.runners import AnthropicMessagesRunner
+from toyaikit.llm import AnthropicClient
+from toyaikit.tools import Tools
+
+calls = {"n": 0}
+
+
+def search(query: str) -> str:
+    """Search the LLM Zoomcamp lessons and return the most relevant passages."""
+    calls["n"] += 1
+    hits = chunk_index.search(query, num_results=5)
+    return "\n\n".join(f"File: {h['filename']}\n{h['content'][:1500]}" for h in hits)
+
+
+tools = Tools()
+tools.add_tool(search)
+llm = AnthropicClient(
+    model="glm-4.6",
+    api_key=os.environ["ZAI_API_KEY"],
+    base_url="https://api.z.ai/api/anthropic",
+    extra_kwargs={"max_tokens": 4096},
+)
+runner = AnthropicMessagesRunner(
+    tools=tools,
+    developer_prompt=(
+        "You're a course teaching assistant. Answer the student's question "
+        "using the search tool. Make multiple searches with different "
+        "keywords before answering."
+    ),
+    chat_interface=IPythonChatInterface(),
+    llm_client=llm,
+)
+runner.loop(prompt="How does the agentic loop work, and how is it different from plain RAG?")
+print(calls["n"])  # ~5 (observed 5 and 8 across runs with glm-4.6)
+```
+
