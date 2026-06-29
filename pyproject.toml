@@ -10,12 +10,17 @@ dependencies = [
     "marimo",
     "minsearch",
     "nbformat>=5.10.4",
+    "numpy",
+    "onnxruntime",
     "python-dotenv>=1.1",
     "toyaikit",
+    "tqdm",
+    "tokenizers",
 ]
 
 [dependency-groups]
 dev = [
+    "huggingface-hub",
     "ruff>=0.6",
 ]
 
@@ -25,7 +30,13 @@ package = false
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["01-agentic-rag/homework.py"]
+extend-exclude = [
+    "*.ipynb",
+    "01-agentic-rag/homework.py",
+    "02-vector-search/homework.py",
+    "02-vector-search/download.py",
+    "02-vector-search/embedder.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I"]

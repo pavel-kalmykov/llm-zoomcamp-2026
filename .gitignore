@@ -51,3 +51,9 @@ logs/
 
 # Keep directory structure
 !**/.gitkeep
+
+# Downloaded ML models (ONNX, etc.)
+models/
+
+# Playwright MCP artifacts
+.playwright-mcp/

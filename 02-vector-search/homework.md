@@ -75,6 +75,20 @@ The embedder returns a vector of 384 numbers. What's the first value
 * 0.12
 * 0.44
 
+```python
+from embedder import Embedder
+
+emb = Embedder()
+v = emb.encode("How does approximate nearest neighbor search work?")
+v[0]
+```
+
+```
+-0.020582036807885073
+```
+
+**Answer:** -0.02
+
 ## Loading the data
 
 We pull the lesson pages from the course repository, the same way as in
@@ -112,6 +126,22 @@ from Q1. What do you get?
 * 0.68
 * 0.92
 
+```python
+import numpy as np
+
+page = next(
+    d for d in documents
+    if d["filename"] == "02-vector-search/lessons/07-sqlitesearch-vector.md"
+)
+np.dot(v, emb.encode(page["content"]))
+```
+
+```
+0.361070280302606
+```
+
+**Answer:** 0.37
+
 ## Q3. Chunking and search by hand
 
 A full page covers several topics, which waters down its embedding.
@@ -137,6 +167,20 @@ Which file does the highest-scoring chunk belong to (its `filename`)?
 * `02-vector-search/lessons/07-sqlitesearch-vector.md`
 * `02-vector-search/lessons/09-onnx-embedder.md`
 
+```python
+from gitsource import chunk_documents
+
+chunks = chunk_documents(documents, size=2000, step=1000)
+X = np.array(emb.encode_batch([c["content"] for c in chunks]))
+chunks[int(np.argmax(X.dot(v)))]["filename"]
+```
+
+```
+'02-vector-search/lessons/07-sqlitesearch-vector.md'
+```
+
+**Answer:** `02-vector-search/lessons/07-sqlitesearch-vector.md`
+
 ## Q4. Vector search with minsearch
 
 We've done vector search by hand, which is good for learning, but it's not
@@ -153,6 +197,23 @@ Which file is the `filename` of the first result?
 * `04-evaluation/lessons/05-search-metrics.md`
 * `04-evaluation/lessons/13-llm-as-judge.md`
 * `05-monitoring/lessons/04-metrics.md`
+
+```python
+from minsearch import VectorSearch
+
+vs = VectorSearch(keyword_fields=["filename"])
+vs.fit(X, chunks)
+vs.search(
+    emb.encode("What metric do we use to evaluate a search engine?"),
+    num_results=5,
+)[0]["filename"]
+```
+
+```
+'04-evaluation/lessons/05-search-metrics.md'
+```
+
+**Answer:** `04-evaluation/lessons/05-search-metrics.md`
 
 ## Q5. Text search vs vector search
 
@@ -173,6 +234,23 @@ vector results but not in the text results?
 * `02-vector-search/lessons/02-embeddings.md`
 * `02-vector-search/lessons/08-pgvector.md`
 * `03-orchestration/lessons/05-rag.md`
+
+```python
+from minsearch import Index
+
+index = Index(text_fields=["content"], keyword_fields=["filename"])
+index.fit(chunks)
+q = "How do I store vectors in PostgreSQL?"
+vec = [d["filename"] for d in vs.search(emb.encode(q), num_results=5)]
+txt = [d["filename"] for d in index.search(q, num_results=5)]
+set(vec) - set(txt)
+```
+
+```
+{'02-vector-search/lessons/08-pgvector.md'}
+```
+
+**Answer:** `02-vector-search/lessons/08-pgvector.md`
 
 ## Q6. Hybrid search
 
@@ -245,6 +323,30 @@ Which file is ranked first after RRF?
 * `01-agentic-rag/lessons/14-agentic-loop.md`
 * `01-agentic-rag/lessons/16-other-frameworks.md`
 
+```python
+def rrf(result_lists, k=60, num_results=5):
+    scores, docs = {}, {}
+    for results in result_lists:
+        for rank, doc in enumerate(results):
+            key = (doc["filename"], doc["start"])
+            scores[key] = scores.get(key, 0) + 1 / (k + rank)
+            docs[key] = doc
+    ranked = sorted(scores, key=scores.get, reverse=True)
+    return [docs[key] for key in ranked[:num_results]]
+
+
+q = "How do I give the model access to tools?"
+rrf(
+    [vs.search(emb.encode(q), num_results=5), index.search(q, num_results=5)]
+)[0]["filename"]
+```
+
+```
+'01-agentic-rag/lessons/13-function-calling.md'
+```
+
+**Answer:** `01-agentic-rag/lessons/13-function-calling.md`
+
 Notice that this file isn't first in either search on its own - it wins
 because it ranks high in both.
 
@@ -311,3 +413,116 @@ Free course by @Al_Grigor & @DataTalksClub: https://github.com/DataTalksClub/llm
 
 * Submit your results here: https://courses.datatalks.club/llm-zoomcamp-2026/homework/hw2
 * It's possible your answers won't match exactly. If so, select the closest one.
+
+## Answers
+
+Solved in the marimo notebook `homework.py` (`uv run marimo run 02-vector-search/homework.py`),
+with a local ONNX `all-MiniLM-L6-v2` embedder (384 dims). Snippets + real output below.
+
+### Q1. Embedding a query. **-0.02**
+
+```python
+from embedder import Embedder
+
+emb = Embedder()
+v = emb.encode("How does approximate nearest neighbor search work?")
+v[0]
+```
+
+```
+-0.020582036807885073
+```
+
+### Q2. Cosine similarity. **0.37**
+
+```python
+import numpy as np
+
+page = next(
+    d for d in documents
+    if d["filename"] == "02-vector-search/lessons/07-sqlitesearch-vector.md"
+)
+np.dot(v, emb.encode(page["content"]))
+```
+
+```
+0.361070280302606
+```
+
+### Q3. Chunking and search by hand. `02-vector-search/lessons/07-sqlitesearch-vector.md`
+
+```python
+from gitsource import chunk_documents
+
+chunks = chunk_documents(documents, size=2000, step=1000)
+X = np.array(emb.encode_batch([c["content"] for c in chunks]))
+chunks[int(np.argmax(X.dot(v)))]["filename"]
+```
+
+```
+'02-vector-search/lessons/07-sqlitesearch-vector.md'
+```
+
+### Q4. Vector search with minsearch. `04-evaluation/lessons/05-search-metrics.md`
+
+```python
+from minsearch import VectorSearch
+
+vs = VectorSearch(keyword_fields=["filename"])
+vs.fit(X, chunks)
+vs.search(
+    emb.encode("What metric do we use to evaluate a search engine?"),
+    num_results=5,
+)[0]["filename"]
+```
+
+```
+'04-evaluation/lessons/05-search-metrics.md'
+```
+
+### Q5. Text search vs vector search. `02-vector-search/lessons/08-pgvector.md`
+
+```python
+from minsearch import Index
+
+index = Index(text_fields=["content"], keyword_fields=["filename"])
+index.fit(chunks)
+q = "How do I store vectors in PostgreSQL?"
+vec = [d["filename"] for d in vs.search(emb.encode(q), num_results=5)]
+txt = [d["filename"] for d in index.search(q, num_results=5)]
+set(vec) - set(txt)
+```
+
+```
+{'02-vector-search/lessons/08-pgvector.md'}
+```
+
+### Q6. Hybrid search (RRF). `01-agentic-rag/lessons/13-function-calling.md`
+
+```python
+def rrf(result_lists, k=60, num_results=5):
+    scores, docs = {}, {}
+    for results in result_lists:
+        for rank, doc in enumerate(results):
+            key = (doc["filename"], doc["start"])
+            scores[key] = scores.get(key, 0) + 1 / (k + rank)
+            docs[key] = doc
+    ranked = sorted(scores, key=scores.get, reverse=True)
+    return [docs[key] for key in ranked[:num_results]]
+
+
+q = "How do I give the model access to tools?"
+rrf(
+    [
+        vs.search(emb.encode(q), num_results=5),
+        index.search(q, num_results=5),
+    ]
+)[0]["filename"]
+```
+
+```
+'01-agentic-rag/lessons/13-function-calling.md'
+```
+
+Note: this file is not first in either search on its own; it wins because it
+ranks high in both, which is exactly what RRF rewards.
