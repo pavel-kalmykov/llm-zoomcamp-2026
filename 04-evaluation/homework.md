@@ -16,6 +16,11 @@ same 72 pages.
 
 > It's possible your answers won't match exactly. If so, select the closest one.
 
+Solved with DeepSeek (`deepseek-chat`) instead of the recommended OpenAI model:
+the Z.ai balance used for Module 1-3 ran out mid-course, and `DEEPSEEK_API_KEY`
+was already available. Structured output for Q1 uses OpenAI-compatible tool
+calling (DeepSeek's API is OpenAI-compatible) instead of `responses.parse`.
+
 ## Setup
 
 This homework continues from homework 2. We reuse the same chunks and the same
@@ -115,6 +120,30 @@ What's the average number of input tokens across these 3 calls?
 * 14000
 * 140000
 
+```python
+import openai
+from evaluation_utils import llm_structured
+
+client = openai.OpenAI(api_key=..., base_url="https://api.deepseek.com/v1")
+input_tokens = []
+for fn in [
+    "01-agentic-rag/lessons/01-intro.md",
+    "01-agentic-rag/lessons/02-environment.md",
+    "01-agentic-rag/lessons/03-rag.md",
+]:
+    doc = next(d for d in documents if d["filename"] == fn)
+    prompt = f'{{"filename": {doc["filename"]!r}, "content": {doc["content"]!r}}}'
+    _, usage = llm_structured(client, data_gen_instructions, prompt, model="deepseek-chat")
+    input_tokens.append(usage.prompt_tokens)
+sum(input_tokens) / len(input_tokens)
+```
+
+```
+1630.0  # [1284, 1566, 2040]
+```
+
+**Answer:** 1400 (closest order of magnitude to the observed 1630, with `deepseek-chat`)
+
 > These numbers vary between runs, even with the same model, so pick the closest
 > option. A different provider or model may land further apart, but the input
 > tokens stay in the same order of magnitude - the prompt we send is the same.
@@ -195,6 +224,17 @@ After running `text_search` for it, what's the `filename` of the first result?
 * `01-agentic-rag/lessons/13-function-calling.md`
 * `01-agentic-rag/lessons/10-rag-next-steps.md`
 
+```python
+q = ground_truth[0]["question"]
+text_search(q)[0]["filename"]
+```
+
+```
+'01-agentic-rag/lessons/03-rag.md'
+```
+
+**Answer:** `01-agentic-rag/lessons/03-rag.md`
+
 ## Q3. First result with vector search
 
 After running `vector_search` for the same question, what's the `filename` of
@@ -204,6 +244,20 @@ the first result?
 * `01-agentic-rag/lessons/03-rag.md`
 * `04-evaluation/lessons/11-evaluation-intro.md`
 * `04-evaluation/lessons/12-rag-answers.md`
+
+```python
+vector_search(q)[0]["filename"]
+```
+
+```
+'01-agentic-rag/lessons/01-intro.md'
+```
+
+**Answer:** `01-agentic-rag/lessons/01-intro.md`
+
+This question was generated from `01-intro.md`. vector_search finds it at the
+top; text_search (Q2) did not. Exactly the point of measuring over the whole
+dataset instead of one query.
 
 This question was generated from `01-agentic-rag/lessons/01-intro.md`. Notice
 that one method finds the right page at the top and the other doesn't. That's
@@ -234,6 +288,18 @@ What's the Hit Rate?
 * 0.76
 * 0.88
 
+```python
+from evaluation_utils import evaluate
+
+evaluate(ground_truth, text_search)
+```
+
+```
+{'hit_rate': 0.7583333333333333, 'mrr': 0.5942592592592594}
+```
+
+**Answer:** 0.76
+
 ## Q5. Evaluating vector search
 
 Now evaluate `vector_search` - the part we left for the homework, since the
@@ -245,6 +311,16 @@ What's the MRR?
 * 0.45
 * 0.55
 * 0.65
+
+```python
+evaluate(ground_truth, vector_search)
+```
+
+```
+{'hit_rate': 0.725, 'mrr': 0.5486111111111112}
+```
+
+**Answer:** 0.55
 
 ## Q6. Tuning hybrid search
 
@@ -262,6 +338,20 @@ Which `k` gives the best MRR?
 * 50
 * 100
 * 200
+
+```python
+for k in [1, 50, 100, 200]:
+    print(k, evaluate(ground_truth, lambda qq, k=k: hybrid_search(qq, k=k)))
+```
+
+```
+1   {'hit_rate': 0.8389, 'mrr': 0.6482}
+50  {'hit_rate': 0.8361, 'mrr': 0.6379}
+100 {'hit_rate': 0.8361, 'mrr': 0.6379}
+200 {'hit_rate': 0.8361, 'mrr': 0.6379}
+```
+
+**Answer:** 1 (highest MRR: 0.648)
 
 > Several values of `k` may give the same MRR. If there's a tie, pick the
 > smallest `k`.

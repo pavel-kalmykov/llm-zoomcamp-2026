@@ -16,6 +16,8 @@ dependencies = [
     "toyaikit",
     "tqdm",
     "tokenizers",
+    "openai>=2.43.0",
+    "pandas>=3.0.3",
 ]
 
 [dependency-groups]
@@ -36,6 +38,7 @@ extend-exclude = [
     "02-vector-search/homework.py",
     "02-vector-search/download.py",
     "02-vector-search/embedder.py",
+    "04-evaluation/homework.py",
 ]
 
 [tool.ruff.lint]
