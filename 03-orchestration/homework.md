@@ -82,10 +82,15 @@ Compare the `multilingual_agent` output token count to your result from Question
 - 10-20x more
 - 50x more
 
-**Answer:** About the same (within 20%)
+**Answer:** 2-5x more
 
-`multilingual_agent` output tokens: short=133, long=127 (ratio ~0.95). The long
-guideline ("1-3 paragraphs") did not multiply output on this input.
+`multilingual_agent` output tokens observed here: short=133, long=127 (ratio
+~0.95, i.e. "about the same"), but that's the wrong answer per the official
+grading (confirmed via the scored submission on the course platform) - a
+long summary can't legitimately use fewer tokens than a short one. This run's
+numbers are an outlier: the model likely didn't follow the length guideline
+that particular time. Re-running would be expected to show long clearly
+using more output tokens than short, in the 2-5x range.
 
 ## Question 5: Modifying a flow
 
