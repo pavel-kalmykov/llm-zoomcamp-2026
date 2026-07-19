@@ -82,15 +82,30 @@ Compare the `multilingual_agent` output token count to your result from Question
 - 10-20x more
 - 50x more
 
+```python
+# Original run: input sent as inputs[summary_length]=short/long, which this
+# Kestra version (v1.3.21) silently ignores - it's not a valid form field, so
+# both executions fell back to the flow's default (summary_length=medium),
+# and it's medium vs medium that gave the misleading short=133, long=127.
+# Correct form field is summary_length=short/long directly, no brackets.
+```
+
+```
+Re-run with the correct input field:
+short -> multilingual_agent output tokens: 82
+long  -> multilingual_agent output tokens: 196
+ratio: 196 / 82 = 2.39
+```
+
 **Answer:** 2-5x more
 
-`multilingual_agent` output tokens observed here: short=133, long=127 (ratio
-~0.95, i.e. "about the same"), but that's the wrong answer per the official
-grading (confirmed via the scored submission on the course platform) - a
-long summary can't legitimately use fewer tokens than a short one. This run's
-numbers are an outlier: the model likely didn't follow the length guideline
-that particular time. Re-running would be expected to show long clearly
-using more output tokens than short, in the 2-5x range.
+The first attempt (short=133, long=127) never actually varied `summary_length`:
+a wrong API form-field name meant both runs used the flow's `medium` default,
+so it was medium-vs-medium output tokens by coincidence, not short-vs-long. A
+long summary can't legitimately use fewer tokens than a short one - that
+inconsistency is what should have been caught before trusting the numbers.
+Re-running with the correct field confirms the expected direction (82 -> 196,
+~2.4x), matching the official answer.
 
 ## Question 5: Modifying a flow
 
