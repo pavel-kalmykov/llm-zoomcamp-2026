@@ -37,6 +37,7 @@ Thumbs.db
 *.duckdb.wal
 *.sqlite
 *.sqlite3
+*.db
 qdrant_storage/
 storage/
 
