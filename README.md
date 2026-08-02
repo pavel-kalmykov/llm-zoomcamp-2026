@@ -16,14 +16,14 @@ This repository contains homework solutions and the capstone project for the [LL
 
 ## Progress
 
-- [ ] Module 1: Agentic RAG
-- [ ] Module 2: Vector Search
-- [ ] Module 3: Orchestration
-- [ ] Module 4: Evaluation
-- [ ] Workshop: dlt
-- [ ] Module 5: Monitoring
-- [ ] Module 6: Best Practices
-- [ ] Module 7: Project Example
+- [x] Module 1: Agentic RAG
+- [x] Module 2: Vector Search
+- [x] Module 3: Orchestration
+- [x] Module 4: Evaluation
+- [x] Workshop: dlt
+- [x] Module 5: Monitoring
+- [ ] Module 6: Best Practices (not graded in the 2026 cohort)
+- [ ] Module 7: Project Example (project guide, not a homework)
 - [ ] Capstone Project
 
 ## Technologies
